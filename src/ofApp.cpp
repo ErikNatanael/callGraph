@@ -165,9 +165,9 @@ void ofApp::setup() {
   foregroundFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
   timelineFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
   
-  // post.init(ofGetWidth(), ofGetHeight());
+  post.init(ofGetWidth(), ofGetHeight());
   // post.createPass<ZoomBlurPass>();
-  // post.createPass<BloomPass>();
+  post.createPass<BloomPass>();
   //post.createPass<GodRaysPass>();
   
   timelineFbo.begin();
@@ -199,7 +199,7 @@ void ofApp::draw(){
       ofBackground(0);
       for(auto& callPair : callMap) {
         ofFill();
-        
+    
         // Find the function connected to the function call
         auto searchFunc = functionMap.find(callPair.second.id);
         if(searchFunc != functionMap.end()) {
@@ -224,14 +224,9 @@ void ofApp::draw(){
     // draw time cursor
     for(int i = 0; i < 10000; i++) {
       timeCursor += 1;
-      int cursorX = ( double(timeCursor-firstts)/double(timeWidth) ) * ofGetWidth();
-      timelineFbo.begin();
-      ofSetColor(255, 255);
-      ofDrawLine(cursorX, HEIGHT*0.99, cursorX, HEIGHT);
-      timelineFbo.end();
       auto search = callMap.find(timeCursor);
       if (search != callMap.end()) {
-          
+    
           //std::cout << "Found " << search->first << " " << search->second.name << '\n';
           ofSetColor(255, 255);
           //ofDrawLine(0, (double(search->second.scriptId)/maxScriptId) * ofGetHeight(), cursorX, ofGetHeight()*0.5);
@@ -239,7 +234,7 @@ void ofApp::draw(){
           auto searchFunc = functionMap.find(search->second.id);
           if(searchFunc != functionMap.end()) {
             auto& func = searchFunc->second;
-            
+    
             // find the parent function
             auto searchParentFunc = functionMap.find(search->second.parent);
             if(searchParentFunc != functionMap.end()) {
@@ -255,9 +250,14 @@ void ofApp::draw(){
               backgroundFbo.end();
             }
           }
-          
+    
       } else {}
     }
+    int cursorX = ( double(timeCursor-firstts)/double(timeWidth) ) * ofGetWidth();
+    timelineFbo.begin();
+    ofSetColor(255, 255);
+    ofDrawLine(cursorX, HEIGHT*0.99, cursorX, HEIGHT);
+    timelineFbo.end();
     
     if(timeCursor > lastts) {
       ofBackground(0);
@@ -265,11 +265,11 @@ void ofApp::draw(){
     }
   }
   
-  // post.begin();
+  post.begin();
     ofSetColor(255, 255);
     backgroundFbo.draw(0, 0);
     foregroundFbo.draw(0, 0);
-  // post.end();
+  post.end();
   
   timelineFbo.draw(0, 0);
   

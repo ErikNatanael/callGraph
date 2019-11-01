@@ -52,6 +52,6 @@ class ofApp : public ofBaseApp{
 		
 		int WIDTH = 1920;
 		int HEIGHT = 1080;
-		// ofxPostProcessing post;
+		ofxPostProcessing post;
 		
 };
