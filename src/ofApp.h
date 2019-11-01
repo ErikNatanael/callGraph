@@ -7,6 +7,7 @@
 #include "FunctionCall.h"
 #include "Function.h"
 #include "Script.h"
+#include "FocusShader.h"
 
 class ofApp : public ofBaseApp{
 
@@ -48,11 +49,14 @@ class ofApp : public ofBaseApp{
 		ofFbo backgroundFbo;
 		ofFbo foregroundFbo;
 		ofFbo timelineFbo;
+		ofFbo canvasFbo;
+		ofFbo resultFbo;
 		ofImage grabImg;
 		
 		int WIDTH = 1920;
 		int HEIGHT = 1080;
 		ofxPostProcessing post;
+		FocusShader focusShader;
 		
 		ofTrueTypeFont font;
 		

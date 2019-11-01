@@ -170,6 +170,9 @@ void ofApp::setup() {
   backgroundFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
   foregroundFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
   timelineFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
+  canvasFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
+  resultFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
+  focusShader.init();
   
   // post.init(ofGetWidth(), ofGetHeight());
   // post.createPass<ZoomBlurPass>();
@@ -282,9 +285,13 @@ void ofApp::draw(){
   }
   
   // post.begin();
+  canvasFbo.begin();
     ofSetColor(255, 255);
     backgroundFbo.draw(0, 0);
     foregroundFbo.draw(0, 0);
+  canvasFbo.end();
+  focusShader.render(canvasFbo, resultFbo);
+  resultFbo.draw(0, 0);
   // post.end();
   
   timelineFbo.draw(0, 0);

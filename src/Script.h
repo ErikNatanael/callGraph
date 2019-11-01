@@ -100,6 +100,8 @@ public:
     if(urlParts[0] == "http://" || urlParts[0] == "https://") ofSetColor(70, 70, 200, 255);
     else if(urlParts[0] == "chrome-extension://") ofSetColor(120, 50, 150, 255);
     else  ofSetColor(110, 150, 50, 255);
+    
+    
     ofDrawCircle(pos, radius + 5);
     
     if(focused) {
