@@ -11,6 +11,9 @@ void ofApp::setup() {
   WIDTH = ofGetWidth();
   HEIGHT = ofGetHeight();
   
+  // must set makeContours to true in order to generate paths
+  font.load("SourceCodePro-Regular.otf", 16, false, false, true);
+  
   // *********************** LOAD AND PARSE JSON DATA
   std::string file = "profiles/software_art/scores/scripting_events.json";
 
@@ -57,6 +60,29 @@ void ofApp::setup() {
           functionCalls.push_back(tempCall);
           callMap.insert({tempCall.ts, tempCall});
           scriptIds.insert(tempCall.scriptId);
+          
+          // create the associated script and store its url
+          auto searchScript = find(scripts.begin(), scripts.end(), tempCall.scriptId);
+          if(searchScript == scripts.end()) {
+            Script tempScript;
+            tempScript.scriptId = tempCall.scriptId;
+            tempScript.url = nodes[j]["callFrame"]["url"].asString();
+            scripts.push_back(tempScript);
+          }
+          
+          // create the associated function
+          auto search = functionMap.find(tempCall.id);
+          if (search != functionMap.end()) {
+              search->second.calledTimes += 1;
+          } else {
+             Function tempFunc;
+             tempFunc.name = tempCall.name;
+             tempFunc.id = tempCall.id;
+             tempFunc.scriptId = tempCall.scriptId;
+             tempFunc.lineNumber = nodes[j]["callFrame"]["lineNumber"].asInt();
+             tempFunc.columnNumber = nodes[j]["callFrame"]["columnNumber"].asInt();
+             functionMap.insert({tempFunc.id, tempFunc});
+          }
 
           if(tempCall.scriptId > maxScriptId) maxScriptId = tempCall.scriptId;
           if(tempCall.ts > lastts) lastts = tempCall.ts;
@@ -74,28 +100,7 @@ void ofApp::setup() {
   cout << "time width: " << timeWidth << endl;
   timeCursor = firstts;
   
-  // create Function representations for the functions used in the function calls
-  for(auto& fc : functionCalls) {
-    string name = fc.name;
-    int id = fc.id;
-    int scriptId = fc.scriptId;
-    
-    auto search = functionMap.find(id);
-    if (search != functionMap.end()) {
-        std::cout << "Found " << search->first << " " << search->second.name << '\n';
-        if(search->second.name != name) ofLog() << "names for " << name << " and " << search->second.name << " are different.";
-        if(search->second.scriptId != scriptId) ofLog() << "sriptIds for " << scriptId << " and " << search->second.scriptId << " are different.";
-        search->second.calledTimes += 1;
-    } else {
-       Function tempFunc;
-       tempFunc.name = name;
-       tempFunc.id = id;
-       tempFunc.scriptId = scriptId;
-       functionMap.insert({id, tempFunc});
-    }
-  }
-  
-  // calculate script variables
+  // count how many functions are in each script
   for(auto& functionMapPair : functionMap) {
     // add the script to the scriptMap if it does not yet exist
     auto searchScript = find(scripts.begin(), scripts.end(), functionMapPair.second.scriptId);
@@ -118,7 +123,7 @@ void ofApp::setup() {
     redoAllPositions = false;
     for(auto& script : scripts) {
       script.radius = 20 + (sqrt(script.numFunctions) * 5);
-      ofLogNotice() << "radius: " << script.radius;
+      //ofLogNotice() << "radius: " << script.radius;
       script.pos = findNewScriptPosition(script.radius);
       //ofLogNotice() << "pos: " << script.pos;
       if(script.pos == glm::vec2(-1, -1)) {
@@ -127,6 +132,7 @@ void ofApp::setup() {
         redoAllPositions = true;
         break; // break out of the for loop and start over
       }
+      script.generatePaths(font);
     }
     if(redoAllPositions) {
       // set all positions back to 0, 0 for recalculation
@@ -165,9 +171,9 @@ void ofApp::setup() {
   foregroundFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
   timelineFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
   
-  post.init(ofGetWidth(), ofGetHeight());
+  // post.init(ofGetWidth(), ofGetHeight());
   // post.createPass<ZoomBlurPass>();
-  post.createPass<BloomPass>();
+  // post.createPass<BloomPass>();
   //post.createPass<GodRaysPass>();
   
   timelineFbo.begin();
@@ -186,9 +192,12 @@ void ofApp::update(){
     for(auto& pair : functionMap) {
       pair.second.update(dt);
     }
+    for(auto& script : scripts) {
+      script.update(dt);
+    }
   }
   
-	ofLog() << "fps: " << ofGetFrameRate();
+	//ofLog() << "fps: " << ofGetFrameRate();
 }
 
 //--------------------------------------------------------------
@@ -209,9 +218,8 @@ void ofApp::draw(){
       }
       // draw every script
       for(auto& script: scripts) {
-        ofNoFill();
-        ofSetColor(70, 70, 200, 255);
-        ofDrawCircle(script.pos, script.radius + 5);
+        script.draw();
+        // font.drawString(to_string(script.scriptId), script.pos.x, script.pos.y-script.radius);
       }
     backgroundFbo.end();
     
@@ -256,20 +264,28 @@ void ofApp::draw(){
     int cursorX = ( double(timeCursor-firstts)/double(timeWidth) ) * ofGetWidth();
     timelineFbo.begin();
     ofSetColor(255, 255);
-    ofDrawLine(cursorX, HEIGHT*0.99, cursorX, HEIGHT);
+    ofDrawRectangle(0, HEIGHT*0.99, cursorX, HEIGHT);
     timelineFbo.end();
     
     if(timeCursor > lastts) {
+      timelineFbo.begin();
+      ofBackground(0, 0);
+      timelineFbo.end();
+      foregroundFbo.begin();
+      ofBackground(0, 0);
+      foregroundFbo.end();
+      backgroundFbo.begin();
       ofBackground(0);
+      backgroundFbo.end();
       timeCursor = firstts;
     }
   }
   
-  post.begin();
+  // post.begin();
     ofSetColor(255, 255);
     backgroundFbo.draw(0, 0);
     foregroundFbo.draw(0, 0);
-  post.end();
+  // post.end();
   
   timelineFbo.draw(0, 0);
   
@@ -283,7 +299,7 @@ glm::vec2 ofApp::findNewScriptPosition(float radius) {
   // check if it's at least n pixels from any previous position
   glm::vec2 newPos;
   bool isGood = true;
-  float minDistance = radius  + 20;
+  float minDistance = radius  + 50;
   const int margin = 100;
   int numTries = 0;
   const int maxTries = 500;
@@ -327,7 +343,10 @@ void ofApp::keyReleased(int key){
 
 //--------------------------------------------------------------
 void ofApp::mouseMoved(int x, int y ){
-
+  for(auto& script : scripts) {
+    // scripts cannot overlap so break if a match is found
+    if(script.checkIfInside(glm::vec2(x, y))) break;
+  }
 }
 
 //--------------------------------------------------------------

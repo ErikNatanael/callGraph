@@ -54,4 +54,6 @@ class ofApp : public ofBaseApp{
 		int HEIGHT = 1080;
 		ofxPostProcessing post;
 		
+		ofTrueTypeFont font;
+		
 };

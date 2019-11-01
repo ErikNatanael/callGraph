@@ -8,6 +8,9 @@ public:
   string name;
   int scriptId;
   int calledTimes = 0;
+  int lineNumber;
+  int columnNumber;
+  
   float radius = 5;
   bool activated = false; // activated if it has been called at least once
   glm::vec2 pos;
