@@ -1,12 +1,14 @@
 #pragma once
 
 #include "ofMain.h"
-#include "ofxJSON.h"
 #include "ofxPostProcessing.h"
 
+#include "Timeline.h"
 #include "FunctionCall.h"
 #include "Function.h"
+#include "FunctionDrawable.h"
 #include "Script.h"
+#include "ScriptDrawable.h"
 #include "FocusShader.h"
 
 class ofApp : public ofBaseApp{
@@ -27,26 +29,15 @@ class ofApp : public ofBaseApp{
 		void windowResized(int w, int h);
 		void dragEvent(ofDragInfo dragInfo);
 		void gotMessage(ofMessage msg);
+		void exit();
 		
 		glm::vec2 findNewScriptPosition(float radius);
 		void saveFrame();
 		
-		ofxJSONElement json;
-		vector<FunctionCall> functionCalls;
-		unordered_map<uint64_t, FunctionCall> callMap;
-		unordered_map<uint32_t, Function> functionMap;
-		vector<Script> scripts;
+		Timeline timeline;
 		
-		uint64_t firstts = 1000000000000;
-	  uint64_t lastts = 0;
-		uint64_t timeWidth = 0;
-		uint32_t numScripts = 0;
-		uint32_t maxScriptId = 0;
-		
-		uint64_t timeCursor = 0;
-		float timeScale = 0.25;
-		bool playing = false;
-		uint32_t numTimeStepsToProgress = 0;
+		vector<ScriptDrawable> scripts;
+		unordered_map<uint32_t, FunctionDrawable> functionMap;
 		
 		ofFbo backgroundFbo;
 		ofFbo foregroundFbo;
@@ -57,9 +48,10 @@ class ofApp : public ofBaseApp{
 		
 		int WIDTH = 1920;
 		int HEIGHT = 1080;
-		ofxPostProcessing post;
 		FocusShader focusShader;
 		
 		ofTrueTypeFont font;
+		
+		list<TimelineMessage> messageFIFOLocal;
 		
 };

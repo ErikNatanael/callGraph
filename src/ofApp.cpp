@@ -14,108 +14,31 @@ void ofApp::setup() {
   // must set makeContours to true in order to generate paths
   font.load("SourceCodePro-Regular.otf", 16, false, false, true);
   
-  // *********************** LOAD AND PARSE JSON DATA
-  std::string file = "profiles/software_art/scores/scripting_events.json";
-
-  // Now parse the JSON
-  bool parsingSuccessful = json.open(file);
-
-  if (parsingSuccessful)
-  {
-      ofLogNotice("ofApp::setup JSON parsing successful");
-  }
-  else
-  {
-      ofLogNotice("ofApp::setup")  << "Failed to parse JSON" << endl;
-  }
-  ofLog() << json["events"];
-  ofLog() << json["events"][3]["ts"];
+  timeline.init(WIDTH, HEIGHT);
+  timeline.parseProfile("profiles/software_art/scores/scripting_events.json");
   
-  set<int> scriptIds; // set to see how many script ids there is
-
-  if (json["events"].isArray())
-  {
-    const Json::Value& events = json["events"];
-    for (Json::ArrayIndex i = 0; i < events.size(); ++i) {
-      if(events[i]["name"] == "ProfileChunk"
-        && events[i]["hasNodes"] == true) {
-        uint64_t ts = events[i]["ts"].asLargestUInt();
-        if(ts < firstts) firstts = ts;
-        
-        uint64_t chunkTime = 0;
-        const Json::Value& timeDeltas = events[i]["timeDeltas"];
-        for (Json::ArrayIndex k = 0; k < timeDeltas.size(); ++k) {
-          chunkTime += timeDeltas[k].asInt();
-        }
-        const Json::Value& nodes = events[i]["nodes"];
-        for (Json::ArrayIndex j = 0; j < nodes.size(); ++j) {
-          FunctionCall tempCall;
-          // TODO: more accurate division of the chunk time into functions
-          // divide the chunk time evenly among the functions in the chunk
-          tempCall.ts = ts + long(double(chunkTime)*0.001*j);
-          tempCall.scriptId = nodes[j]["callFrame"]["scriptId"].asInt();
-          tempCall.name = nodes[j]["callFrame"]["functionName"].asString();
-          tempCall.id = nodes[j]["id"].asInt();
-          tempCall.parent = nodes[j]["parent"].asInt();
-          functionCalls.push_back(tempCall);
-          callMap.insert({tempCall.ts, tempCall});
-          scriptIds.insert(tempCall.scriptId);
-          
-          // create the associated script and store its url
-          auto searchScript = find(scripts.begin(), scripts.end(), tempCall.scriptId);
-          if(searchScript == scripts.end()) {
-            Script tempScript;
-            tempScript.scriptId = tempCall.scriptId;
-            tempScript.url = nodes[j]["callFrame"]["url"].asString();
-            scripts.push_back(tempScript);
-          }
-          
-          // create the associated function
-          auto search = functionMap.find(tempCall.id);
-          if (search != functionMap.end()) {
-              search->second.calledTimes += 1;
-          } else {
-             Function tempFunc;
-             tempFunc.name = tempCall.name;
-             tempFunc.id = tempCall.id;
-             tempFunc.scriptId = tempCall.scriptId;
-             tempFunc.lineNumber = nodes[j]["callFrame"]["lineNumber"].asInt();
-             tempFunc.columnNumber = nodes[j]["callFrame"]["columnNumber"].asInt();
-             functionMap.insert({tempFunc.id, tempFunc});
-          }
-
-          if(tempCall.scriptId > maxScriptId) maxScriptId = tempCall.scriptId;
-          if(tempCall.ts > lastts) lastts = tempCall.ts;
-        }
-      }
-    }
+  auto& tlFunctionMap = timeline.getFunctionMap(); // borrow the function map to create a map of FunctionDrawable
+  auto& tlScripts = timeline.getScripts(); // borrow the script vector to create a vector of ScriptDrawable
+  // create collections from these
+  for(auto& s : tlScripts) {
+    ScriptDrawable script;
+    script.url = s.url;
+    script.scriptId = s.scriptId;
+    script.numFunctions = s.numFunctions;
+    scripts.push_back(script);
   }
   
-  timeWidth = lastts - firstts;
-  numScripts = scriptIds.size();
-  cout << functionCalls.size() << " function calls registered" << endl;
-  cout << scriptIds.size() << " script ids registered" << endl;
-  cout << "first ts: " << firstts << endl;
-  cout << "last ts: " << lastts << endl;
-  cout << "time width: " << timeWidth << endl;
-  timeCursor = firstts;
-  
-  // count how many functions are in each script
-  for(auto& functionMapPair : functionMap) {
-    // add the script to the scriptMap if it does not yet exist
-    auto searchScript = find(scripts.begin(), scripts.end(), functionMapPair.second.scriptId);
-    if(searchScript == scripts.end()) {
-      Script tempScript;
-      tempScript.scriptId = functionMapPair.second.scriptId;
-      tempScript.numFunctions = 1;
-      scripts.push_back(tempScript);
-    } else {
-      // else increase the number of scripts
-      searchScript->numFunctions++;
-    }
+  for(auto& fPair : tlFunctionMap) {
+    auto& f = fPair.second;
+    FunctionDrawable func;
+    func.id = f.id;
+    func.name = f.name;
+    func.scriptId = f.scriptId;
+    func.calledTimes = f.calledTimes;
+    func.lineNumber = f.lineNumber;
+    func.columnNumber = f.columnNumber;
+    functionMap.insert({func.id, func});
   }
-  // sort scripts after number of functions to find a position for the biggest one first
-  std::sort (scripts.begin(), scripts.end());
   
   // go through all scripts and calculate their radii and positions
   bool redoAllPositions = false;
@@ -160,7 +83,7 @@ void ofApp::setup() {
     func.boundCenter = scriptPos;
     func.boundRadius = maxRadius;
   }
-  
+    
   // ***************************** INIT openFrameworks STUFF
   ofBackground(0);
   ofSetFrameRate(60);
@@ -169,19 +92,11 @@ void ofApp::setup() {
   ofSetCircleResolution(100);
   backgroundFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
   foregroundFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
-  timelineFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
   canvasFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
   resultFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
   focusShader.init();
   
-  // post.init(ofGetWidth(), ofGetHeight());
-  // post.createPass<ZoomBlurPass>();
-  // post.createPass<BloomPass>();
-  //post.createPass<GodRaysPass>();
-  
-  timelineFbo.begin();
-  ofBackground(0, 0);
-  timelineFbo.end();
+  timeline.startThread(true);
 }
 
 //--------------------------------------------------------------
@@ -190,13 +105,8 @@ void ofApp::update(){
   float dt = ofGetElapsedTimef()-lastTime;
   lastTime = ofGetElapsedTimef();
   
-  // calculate how many time steps whould be gone through this frame
-  const double timeStepsPerSecond = 1000000;
-  numTimeStepsToProgress = dt * timeStepsPerSecond * timeScale;
-  ofLog() << "numTimeStepsToProgress: " << numTimeStepsToProgress;
-  
   // move functions
-  if(playing) {
+  if(timeline.isPlaying()) {
     for(auto& pair : functionMap) {
       pair.second.update(dt);
     }
@@ -205,29 +115,32 @@ void ofApp::update(){
     }
   }
   
-	ofLog() << "fps: " << ofGetFrameRate();
+	//ofLog() << "fps: " << ofGetFrameRate();
 }
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-  if(playing) {
+  if(timeline.isPlaying()) {
     // draw the location of every function in the background
     backgroundFbo.begin();
       ofBackground(0);
-      for(auto& callPair : callMap) {
-        ofFill();
-    
-        // Find the function connected to the function call
-        auto searchFunc = functionMap.find(callPair.second.id);
-        if(searchFunc != functionMap.end()) {
-          auto& func = searchFunc->second;
-          func.drawShapeBackground();
-        }
+      // for(auto& callPair : callMap) {
+      //   ofFill();
+      // 
+      //   // Find the function connected to the function call
+      //   auto searchFunc = functionMap.find(callPair.second.id);
+      //   if(searchFunc != functionMap.end()) {
+      //     auto& func = searchFunc->second;
+      //     func.drawShapeBackground();
+      //   }
+      // }
+      for(auto& fPair : functionMap) {
+        auto& func = fPair.second;
+        func.drawShapeBackground();
       }
       // draw every script
       for(auto& script: scripts) {
         script.draw();
-        // font.drawString(to_string(script.scriptId), script.pos.x, script.pos.y-script.radius);
       }
     backgroundFbo.end();
     
@@ -237,59 +150,46 @@ void ofApp::draw(){
     ofDrawRectangle(0, 0, ofGetWidth(), ofGetHeight());
     foregroundFbo.end();
     
-    for(int i = 0; i < numTimeStepsToProgress; i++) {
-      timeCursor += 1;
-      auto search = callMap.find(timeCursor);
-      if (search != callMap.end()) {
+    // get the message queue from the timeline
+    timeline.lock();
+    // swap queues to get access to the full queue with only one lock
+    messageFIFOLocal.swap(timeline.messageFIFO);
+    timeline.unlock();
     
-          //std::cout << "Found " << search->first << " " << search->second.name << '\n';
-          ofSetColor(255, 255);
-          //ofDrawLine(0, (double(search->second.scriptId)/maxScriptId) * ofGetHeight(), cursorX, ofGetHeight()*0.5);
-          // Find the function connected to the function call
-          auto searchFunc = functionMap.find(search->second.id);
-          if(searchFunc != functionMap.end()) {
-            auto& func = searchFunc->second;
-    
-            // find the parent function
-            auto searchParentFunc = functionMap.find(search->second.parent);
-            if(searchParentFunc != functionMap.end()) {
-              auto& parent = searchParentFunc->second;
-              glm::vec2 acc = glm::normalize(parent.pos - func.pos)*20;
-              func.acc = acc;
-              func.activate();
-              foregroundFbo.begin();
-                func.drawForeground(parent);
-              foregroundFbo.end();
-              backgroundFbo.begin();
-                func.drawLineBackground(parent);
-              backgroundFbo.end();
-            }
-          }
-    
-      } else {}
+    for(auto& m : messageFIFOLocal) {
+      if(m.type == "functionCall") {
+        // assume it exists
+        auto& func = functionMap[m.parameters["id"]];
+        auto& parent = functionMap[m.parameters["parent"]];
+        glm::vec2 acc = glm::normalize(parent.pos - func.pos)*20;
+        func.acc = acc;
+        func.activate();
+        foregroundFbo.begin();
+          func.drawForeground(parent);
+        foregroundFbo.end();
+        backgroundFbo.begin();
+          func.drawLineBackground(parent);
+        backgroundFbo.end();
+      } else if (m.type == "timelineReset") {
+        // time cursor has reached the last event and has been reset
+        // reset fbos
+        foregroundFbo.begin();
+        ofBackground(0, 0);
+        foregroundFbo.end();
+        backgroundFbo.begin();
+        ofBackground(0);
+        backgroundFbo.end();
+        // reset all movement related things
+        for(auto& fPair : functionMap) {
+          auto& func = fPair.second;
+          func.reset();
+        }
+      }
     }
-    // draw time cursor
-    int cursorX = ( double(timeCursor-firstts)/double(timeWidth) ) * ofGetWidth();
-    timelineFbo.begin();
-    ofSetColor(255, 255);
-    ofDrawRectangle(0, HEIGHT*0.99, cursorX, HEIGHT);
-    timelineFbo.end();
+    messageFIFOLocal.clear(); // clear the local queue in preparation for the next swap
     
-    if(timeCursor > lastts) {
-      timelineFbo.begin();
-      ofBackground(0, 0);
-      timelineFbo.end();
-      foregroundFbo.begin();
-      ofBackground(0, 0);
-      foregroundFbo.end();
-      backgroundFbo.begin();
-      ofBackground(0);
-      backgroundFbo.end();
-      timeCursor = firstts;
-    }
   }
   
-  // post.begin();
   canvasFbo.begin();
     ofSetColor(255, 255);
     backgroundFbo.draw(0, 0);
@@ -297,9 +197,8 @@ void ofApp::draw(){
   canvasFbo.end();
   focusShader.render(canvasFbo, resultFbo);
   resultFbo.draw(0, 0);
-  // post.end();
   
-  timelineFbo.draw(0, 0);
+  timeline.draw();
   
   // Alpha needs to be cleared in order to accurately capture with OBS or grabScreen()
   // see: https://forum.openframeworks.cc/t/different-transparency-and-colours-on-screen-in-recording/32784
@@ -339,7 +238,7 @@ glm::vec2 ofApp::findNewScriptPosition(float radius) {
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
   if(key == ' ') {
-    playing = !playing;
+    timeline.togglePlay();
   } else if (key=='s') {
     saveFrame();
   }
@@ -368,6 +267,7 @@ void ofApp::mouseDragged(int x, int y, int button){
 
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button){
+  timeline.click(x, y);
 
 }
 
@@ -399,4 +299,8 @@ void ofApp::gotMessage(ofMessage msg){
 //--------------------------------------------------------------
 void ofApp::dragEvent(ofDragInfo dragInfo){ 
 
+}
+
+void ofApp::exit() {
+  timeline.stopThread();
 }

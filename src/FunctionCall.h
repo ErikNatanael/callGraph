@@ -1,3 +1,4 @@
+#pragma once
 
 class FunctionCall {
 public:
