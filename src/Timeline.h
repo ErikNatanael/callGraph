@@ -3,6 +3,7 @@
 #include "ofMain.h"
 #include <memory>
 #include "ofxJSON.h"
+#include "ofxOsc.h"
 
 #include "FunctionCall.h"
 #include "Function.h"
@@ -45,6 +46,9 @@ private:
   
   int WIDTH = 0, HEIGHT = 0;
   
+  ofxOscSender oscSender;
+  ofxOscMessage oscMess;
+  
   // all data
   
   vector<FunctionCall> functionCalls;
@@ -76,7 +80,7 @@ private:
             mess.parameters.insert({"id", search->second.id});
             mess.parameters.insert({"parent", search->second.parent});
             // send it as OSC
-
+            sendViaOsc(mess);
             // lock access to the resource
             lock();
             // put the message in the queue
@@ -99,6 +103,18 @@ private:
       // done
   }
   
+  void sendViaOsc(TimelineMessage& mess) {
+    oscMess.clear();
+    oscMess.setAddress("/timeline-message");
+    if(mess.type == "functionCall") {
+      oscMess.addStringArg(mess.type);
+      oscMess.addInt32Arg(mess.parameters["id"]);
+      oscMess.addInt32Arg(mess.parameters["parent"]);
+    }
+    
+    oscSender.sendMessage(oscMess);
+  }
+  
 public:
   
   // message queue
@@ -113,6 +129,8 @@ public:
     WIDTH = w;
     HEIGHT = h;
     timelineHeight = h*0.01;
+    
+    oscSender.setup("127.0.0.1", 57120); // send to SuperCollider on the local machine
   }
   void parseProfile(string filepath) {
     // load and parse the json data in the path provided
@@ -246,6 +264,14 @@ public:
   
   bool isPlaying() {
     return playing;
+  }
+  
+  void reduceSpeed() {
+    timeScale *= 0.9;
+  }
+  
+  void increaseSpeed() {
+    timeScale *= 1.11;
   }
   
   void click(int x, int y) {

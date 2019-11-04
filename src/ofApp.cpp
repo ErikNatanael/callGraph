@@ -286,6 +286,14 @@ void ofApp::mouseExited(int x, int y){
 
 }
 
+void ofApp::mouseScrolled(int x, int y, float scrollX, float scrollY){
+  if(scrollY < 0) {
+    timeline.reduceSpeed();
+  } else if(scrollY > 0) {
+    timeline.increaseSpeed();
+  }
+}
+
 //--------------------------------------------------------------
 void ofApp::windowResized(int w, int h){
 
