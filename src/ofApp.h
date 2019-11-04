@@ -44,7 +44,9 @@ class ofApp : public ofBaseApp{
 		uint32_t maxScriptId = 0;
 		
 		uint64_t timeCursor = 0;
+		float timeScale = 0.25;
 		bool playing = false;
+		uint32_t numTimeStepsToProgress = 0;
 		
 		ofFbo backgroundFbo;
 		ofFbo foregroundFbo;

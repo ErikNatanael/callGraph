@@ -190,6 +190,11 @@ void ofApp::update(){
   float dt = ofGetElapsedTimef()-lastTime;
   lastTime = ofGetElapsedTimef();
   
+  // calculate how many time steps whould be gone through this frame
+  const double timeStepsPerSecond = 1000000;
+  numTimeStepsToProgress = dt * timeStepsPerSecond * timeScale;
+  ofLog() << "numTimeStepsToProgress: " << numTimeStepsToProgress;
+  
   // move functions
   if(playing) {
     for(auto& pair : functionMap) {
@@ -200,7 +205,7 @@ void ofApp::update(){
     }
   }
   
-	//ofLog() << "fps: " << ofGetFrameRate();
+	ofLog() << "fps: " << ofGetFrameRate();
 }
 
 //--------------------------------------------------------------
@@ -232,8 +237,7 @@ void ofApp::draw(){
     ofDrawRectangle(0, 0, ofGetWidth(), ofGetHeight());
     foregroundFbo.end();
     
-    // draw time cursor
-    for(int i = 0; i < 10000; i++) {
+    for(int i = 0; i < numTimeStepsToProgress; i++) {
       timeCursor += 1;
       auto search = callMap.find(timeCursor);
       if (search != callMap.end()) {
@@ -264,6 +268,7 @@ void ofApp::draw(){
     
       } else {}
     }
+    // draw time cursor
     int cursorX = ( double(timeCursor-firstts)/double(timeWidth) ) * ofGetWidth();
     timelineFbo.begin();
     ofSetColor(255, 255);
