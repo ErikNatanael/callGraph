@@ -28,6 +28,7 @@ public:
 
 class Timeline : public ofThread  {
 private:
+  ofMutex oscMutex;
   
   uint64_t timeCursor = 0;
   float timeScale = 1;
@@ -79,6 +80,7 @@ private:
             mess.type = "functionCall";
             mess.parameters.insert({"id", search->second.id});
             mess.parameters.insert({"parent", search->second.parent});
+            mess.parameters.insert({"scriptId", search->second.scriptId});
             // send it as OSC
             sendViaOsc(mess);
             // lock access to the resource
@@ -104,15 +106,20 @@ private:
   }
   
   void sendViaOsc(TimelineMessage& mess) {
+    oscMutex.lock();
     oscMess.clear();
     oscMess.setAddress("/timeline-message");
     if(mess.type == "functionCall") {
       oscMess.addStringArg(mess.type);
       oscMess.addInt32Arg(mess.parameters["id"]);
       oscMess.addInt32Arg(mess.parameters["parent"]);
+    } else if(mess.type == "changeSpeed") {
+      oscMess.addStringArg(mess.type);
+      oscMess.addFloatArg(mess.parameters["speed"]);
     }
     
     oscSender.sendMessage(oscMess);
+    oscMutex.unlock();
   }
   
 public:
@@ -268,10 +275,18 @@ public:
   
   void reduceSpeed() {
     timeScale *= 0.9;
+    TimelineMessage mess;
+    mess.type = "changeSpeed";
+    mess.parameters.insert({"speed", timeScale});
+    sendViaOsc(mess);
   }
   
   void increaseSpeed() {
     timeScale *= 1.11;
+    TimelineMessage mess;
+    mess.type = "changeSpeed";
+    mess.parameters.insert({"speed", timeScale});
+    sendViaOsc(mess);
   }
   
   void click(int x, int y) {
