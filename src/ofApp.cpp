@@ -101,6 +101,13 @@ void ofApp::setup() {
 
 //--------------------------------------------------------------
 void ofApp::update(){
+  
+  
+	//ofLog() << "fps: " << ofGetFrameRate();
+}
+
+//--------------------------------------------------------------
+void ofApp::draw(){
   static float lastTime = 0;
   float dt = ofGetElapsedTimef()-lastTime;
   lastTime = ofGetElapsedTimef();
@@ -115,11 +122,6 @@ void ofApp::update(){
     }
   }
   
-	//ofLog() << "fps: " << ofGetFrameRate();
-}
-
-//--------------------------------------------------------------
-void ofApp::draw(){
   if(timeline.isPlaying()) {
     // draw the location of every function in the background
     backgroundFbo.begin();
@@ -170,6 +172,8 @@ void ofApp::draw(){
         backgroundFbo.begin();
           func.drawLineBackground(parent);
         backgroundFbo.end();
+        targetPos = func.pos;
+          
       } else if (m.type == "timelineReset") {
         // time cursor has reached the last event and has been reset
         // reset fbos
@@ -188,6 +192,14 @@ void ofApp::draw(){
     }
     messageFIFOLocal.clear(); // clear the local queue in preparation for the next swap
     
+  }
+  
+  glm::vec2 moveVector = targetPos - currentPos;
+  currentPos += moveVector*dt;
+  
+  if(!manualFocus) {
+    focusShader.centerX = currentPos.x/float(ofGetWidth());
+    focusShader.centerY = currentPos.y/float(ofGetHeight());
   }
   
   canvasFbo.begin();
@@ -241,6 +253,8 @@ void ofApp::keyPressed(int key){
     timeline.togglePlay();
   } else if (key=='s') {
     saveFrame();
+  } else if (key == 'm') {
+    manualFocus = !manualFocus;
   }
 
 }
@@ -257,6 +271,10 @@ void ofApp::mouseMoved(int x, int y ){
   for(auto& script : scripts) {
     // scripts cannot overlap so break if a match is found
     if(script.checkIfInside(glm::vec2(x, y))) break;
+  }
+  if(manualFocus) {
+    focusShader.centerX = float(x)/float(ofGetWidth());
+    focusShader.centerY = float(y)/float(ofGetHeight());
   }
 }
 

@@ -50,6 +50,10 @@ class ofApp : public ofBaseApp{
 		int WIDTH = 1920;
 		int HEIGHT = 1080;
 		FocusShader focusShader;
+		bool manualFocus = false;
+		
+		glm::vec2 targetPos;
+		glm::vec2 currentPos;
 		
 		ofTrueTypeFont font;
 		

@@ -28,8 +28,8 @@ public:
       shader.begin();
       
       shader.setUniformTexture("tDiffuse", readFbo.getTextureReference(), 1);
-      shader.setUniform1f("fX", float(ofGetMouseX())/float(ofGetWidth()));
-      shader.setUniform1f("fY", float(ofGetMouseY())/float(ofGetHeight()));
+      shader.setUniform1f("fX", centerX);
+      shader.setUniform1f("fY", centerY);
       shader.setUniform1f("fExposure", exposure);
       shader.setUniform1f("fDecay", decay);
       shader.setUniform1f("fDensity", density);
