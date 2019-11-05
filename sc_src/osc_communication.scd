@@ -46,6 +46,15 @@ SynthDef(\noisepad, { |out = 0, amp = 0.5, freq = 440, gate = 1, attack = 0.01, 
 
 	Out.ar(out, Pan2.ar(sig, pan)*env*amp);
 }).add;
+SynthDef(\tick, {
+	var sig, env;
+	env = Env.perc(0, 0.2).kr(2);
+	sig = Impulse.ar(0);
+	sig = sig * 0.1;
+	sig = RLPF.ar(sig, \freq.kr(1000), \rq.kr(0.1));
+	sig = Pan2.ar(sig, \pan.kr(0)) * \amp.kr(1.0);
+	Out.ar(\out.kr(0), sig);
+}).add;
 SynthDef(\sineperc, { var freq = \freq.kr(100), sig, env;
 	env = EnvGen.kr(Env.perc(\atk.kr(0.01), \rel.kr(1), 1.0, [\c0.kr(4), \c1.kr(-4)]), doneAction: 2);
 	freq = XLine.ar(Rand(4000, 6000), freq, 0.006);
@@ -76,11 +85,17 @@ Synth(\verb);
 ~speedSynth = Synth(\noisepad, [\freq, 400]);
 ~functionCallDensity = 0;
 ~speed = 1;
+~scriptChords = [];
+300.do{|i|
+	var chord = [1.0, 3/2, 5/4, 2, 4/3, 16/15]*rrand(2000, 4000);
+	~scriptChords = ~scriptChords.add(chord);
+};
 OSCdef(\test, {
 	|msg, time, addr, recvPort|
-	if(msg[1] == \functionCall) {
+	if(msg[1] == \functionCall) { var notes = [1.0, 3/2, 5/4, 2, 4/3, 16/15]*4000;
 		~functionCallDensity = ~functionCallDensity + 1;
-		Synth(\sineperc, [\freq, rrand(400, 4000)*~speed.linlin(0.0, 2.0, 0.1, 2.0), \amp, 0.05, \rel, 2/~functionCallDensity, \pan, rrand(-1, 1.0)]);
+		Synth(\tick,[\freq, rrand(5000, 6000)*~speed.linlin(0.0, 2.0, 0.1, 2.0), \rq, ~functionCallDensity.linexp(0, 1, 0.001, 1.0), \amp, min(~speed.pow(2), 1.0), \pan, [-1, 1].choose]);
+		Synth(\sineperc, [\freq, min(notes.choose*~speed.linlin(0.0, 1.0, 0.1, 2.0), 19000), \amp, 0.05 * max((1-~speed), 0).pow(2), \rel, 10/~functionCallDensity, \pan, rrand(-1, 1.0)]);
 		msg.postln;
 	};
 	if(msg[1] == \changeSpeed) {
@@ -94,7 +109,7 @@ OSCdef(\test, {
 
 {
 	loop {
-		~functionCallDensity = min(~functionCallDensity, 10);
+		~functionCallDensity = min(~functionCallDensity, 100);
 		~functionCallDensity = ~functionCallDensity * 0.95;
 		~functionCallDensity = max(~functionCallDensity, 0);
 		0.01.wait;

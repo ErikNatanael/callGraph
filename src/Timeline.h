@@ -113,6 +113,7 @@ private:
       oscMess.addStringArg(mess.type);
       oscMess.addInt32Arg(mess.parameters["id"]);
       oscMess.addInt32Arg(mess.parameters["parent"]);
+      oscMess.addInt32Arg(mess.parameters["scriptId"]);
     } else if(mess.type == "changeSpeed") {
       oscMess.addStringArg(mess.type);
       oscMess.addFloatArg(mess.parameters["speed"]);
