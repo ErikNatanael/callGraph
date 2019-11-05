@@ -41,7 +41,7 @@ SynthDef(\noisepad, { |out = 0, amp = 0.5, freq = 440, gate = 1, attack = 0.01, 
 	//sig = sig + (DFM1.ar(sig, 100, 1.0, 20*rough).tanh);
 
 	sig = (sig*(1-fragAmount)) + (sig * Lag.kr(Demand.kr(Dust.kr(fragDensity) + Impulse.kr(0), 0, Dseq([1, 0], inf)), 0.02) * fragAmount);
-	sig = LPF.ar(sig, lpf.min(19000));
+	sig = LPF.ar(sig, lpf.min(19000)) * AmpCompA.kr(freq, 20);
 
 
 	Out.ar(out, Pan2.ar(sig, pan)*env*amp);
@@ -62,6 +62,21 @@ SynthDef(\sineperc, { var freq = \freq.kr(100), sig, env;
 	sig = sig * env;
 	sig = Pan2.ar(sig, \pan.kr(0));
 	Out.ar(0, sig);
+}).add;
+SynthDef(\filtered_noise, {
+	var sig, env, freqs;
+	env = EnvGen.kr(
+		Env(
+			levels: [0, 1, 0],
+			times: [\atk.kr(0.5), \rel.kr(4)],
+			curve: [\c0.kr(2), \c1.kr(-2)],
+			releaseNode: 1),
+		gate: \gate.kr(1)
+		).kr;
+	sig = PinkNoise.ar();
+	sig = Resonz.ar(sig*16, \freq.kr(400), 0.001)*env;
+	sig = Pan2.ar(sig, \pan.kr(0.0));
+	Out.ar(\out.kr(0), sig);
 }).add;
 SynthDef(\verb, {
     var snd, wet;
@@ -85,6 +100,7 @@ Synth(\verb);
 ~speedSynth = Synth(\noisepad, [\freq, 400]);
 ~functionCallDensity = 0;
 ~speed = 1;
+~filteredNoiseSynths = [];
 ~scriptChords = [];
 300.do{|i|
 	var chord = [1.0, 3/2, 5/4, 2, 4/3, 16/15]*rrand(2000, 4000);
@@ -92,10 +108,49 @@ Synth(\verb);
 };
 OSCdef(\test, {
 	|msg, time, addr, recvPort|
-	if(msg[1] == \functionCall) { var notes = [1.0, 3/2, 5/4, 2, 4/3, 16/15]*4000;
+	if(msg[1] == \functionCall) {
+		var id = msg[2],
+		parent = msg[3],
+		scriptId = msg[4],
+		notes = ~scriptChords[scriptId], // choose chord based on scriptId
+		distance = parent - id, // if positive its further down the call tree, if negative its just gone back up the call tree
+		idDigits = Set[], tempid = id;
+
+		while({ tempid > 0 }, {
+			idDigits = idDigits.add(tempid.asInt%10);
+			tempid = (tempid.asInt/10).asInt;
+		});
+
 		~functionCallDensity = ~functionCallDensity + 1;
+
+		if(~speed > 0.025, {
+			// kind of just gives you an impression of density
 		Synth(\tick,[\freq, rrand(5000, 6000)*~speed.linlin(0.0, 2.0, 0.1, 2.0), \rq, ~functionCallDensity.linexp(0, 1, 0.001, 1.0), \amp, min(~speed.pow(2), 1.0), \pan, [-1, 1].choose]);
-		Synth(\sineperc, [\freq, min(notes.choose*~speed.linlin(0.0, 1.0, 0.1, 2.0), 19000), \amp, 0.05 * max((1-~speed), 0).pow(2), \rel, 10/~functionCallDensity, \pan, rrand(-1, 1.0)]);
+		// one note per scriptId as of right now
+		Synth(\sineperc, [\freq, min(notes[0]*~speed.linlin(0.0, 1.0, 0.1, 2.0), 19000), \amp, 0.05 * max((1-~speed), 0).pow(2), \rel, 10/~functionCallDensity, \pan, rrand(-1, 1.0)]);
+		}, {
+			// play a noise that is specific to the function
+			var modifiedChord = notes, sparserChord;
+			modifiedChord = modifiedChord.collect{|freq, i| var newFreq;
+				if(id%(i+2) == 0, {
+					newFreq = freq * 2;
+				}, {
+					if(id%(i+3) < ((i+1)/2.0), {
+						newFreq = freq * 0.5;
+					}, {
+						newFreq = freq
+					});
+				});
+				freq
+			};
+			sparserChord = idDigits.collect{|digit| modifiedChord[digit%modifiedChord.size]};
+			sparserChord = [sparserChord.choose];
+			~filteredNoiseSynths.do{|syn| syn.set(\rel, 0.5, \gate, 0); }; // release all old chords
+			~filteredNoiseSynths = sparserChord.collect { | freq |
+				Synth(\filtered_noise, [\freq, freq*0.25, \amp, 1.0, \atk, 0.1, \rel, (10 * (1-~speed).pow(4)), \pan, rrand(-1, 1)]);
+
+			};
+		});
 		msg.postln;
 	};
 	if(msg[1] == \changeSpeed) {
