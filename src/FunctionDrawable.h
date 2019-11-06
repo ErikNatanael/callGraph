@@ -1,6 +1,7 @@
 #pragma once
 
 #include "ofMain.h"
+#include "Camera2D.h"
 
 class FunctionDrawable {
 public:
@@ -83,20 +84,28 @@ public:
     }
   }
   
-  void drawForeground(FunctionDrawable& parent) {
+  void drawForeground(FunctionDrawable& parent, Camera2D& camera2d) {
     ofSetColor(30, 255, 70, 150);
-    ofDrawLine(pos, parent.pos);
-    ofDrawCircle(pos, radius*1.2);
+    ofDrawLine(pos + camera2d.offsetPos, parent.pos + camera2d.offsetPos);
+    ofDrawCircle(pos + camera2d.offsetPos, radius*1.2);
   }
   
-  void drawLineBackground(FunctionDrawable& parent) {
+  void drawLineBackground(FunctionDrawable& parent, Camera2D& camera2d) {
     ofSetColor(30, 70, 150, 200);
-    ofDrawLine(pos, parent.pos);
+    ofDrawLine(pos + camera2d.offsetPos, parent.pos + camera2d.offsetPos);
   }
   
-  void drawShapeBackground() {
-    if(activated) ofSetColor(80, 80, 250, alpha);
-    else ofSetColor(80, 80, 250, 50);
-    ofDrawCircle(pos.x, pos.y, radius);
+  void drawShapeBackground(Camera2D& camera2d) {
+    glm::vec2 offsetPos = camera2d.offsetPos;
+    if(activated) {
+      offsetPos = camera2d.offsetPos;
+      ofSetColor(80, 80, 250, alpha);
+      ofDrawLine(pos + camera2d.offsetPos, pos + camera2d.offsetPosLow);
+    }
+    else {
+      offsetPos = camera2d.offsetPosLow;
+      ofSetColor(80, 80, 250, 50);
+    }
+    ofDrawCircle(pos + offsetPos, radius);
   }
 };

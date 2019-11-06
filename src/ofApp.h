@@ -10,6 +10,7 @@
 #include "Script.h"
 #include "ScriptDrawable.h"
 #include "FocusShader.h"
+#include "Camera2D.h"
 
 class ofApp : public ofBaseApp{
 
@@ -51,9 +52,8 @@ class ofApp : public ofBaseApp{
 		int HEIGHT = 1080;
 		FocusShader focusShader;
 		bool manualFocus = false;
-		
-		glm::vec2 targetPos;
-		glm::vec2 currentPos;
+	
+		Camera2D camera2d;
 		
 		ofTrueTypeFont font;
 		

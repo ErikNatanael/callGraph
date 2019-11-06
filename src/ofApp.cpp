@@ -138,11 +138,11 @@ void ofApp::draw(){
       // }
       for(auto& fPair : functionMap) {
         auto& func = fPair.second;
-        func.drawShapeBackground();
+        func.drawShapeBackground(camera2d);
       }
       // draw every script
       for(auto& script: scripts) {
-        script.draw();
+        script.draw(camera2d);
       }
     backgroundFbo.end();
     
@@ -167,12 +167,12 @@ void ofApp::draw(){
         func.acc = acc;
         func.activate();
         foregroundFbo.begin();
-          func.drawForeground(parent);
+          func.drawForeground(parent, camera2d);
         foregroundFbo.end();
         backgroundFbo.begin();
-          func.drawLineBackground(parent);
+          func.drawLineBackground(parent, camera2d);
         backgroundFbo.end();
-        targetPos = func.pos;
+        camera2d.targetPos = func.pos;
           
       } else if (m.type == "timelineReset") {
         // time cursor has reached the last event and has been reset
@@ -194,12 +194,11 @@ void ofApp::draw(){
     
   }
   
-  glm::vec2 moveVector = targetPos - currentPos;
-  currentPos += moveVector*dt;
+  camera2d.update(dt);
   
   if(!manualFocus) {
-    focusShader.centerX = currentPos.x/float(ofGetWidth());
-    focusShader.centerY = currentPos.y/float(ofGetHeight());
+    focusShader.centerX = (camera2d.targetPos.x+camera2d.offsetPos.x)/float(ofGetWidth());
+    focusShader.centerY = (camera2d.targetPos.y+camera2d.offsetPos.y)/float(ofGetHeight());
   }
   
   canvasFbo.begin();
@@ -270,7 +269,7 @@ void ofApp::keyReleased(int key){
 void ofApp::mouseMoved(int x, int y ){
   for(auto& script : scripts) {
     // scripts cannot overlap so break if a match is found
-    if(script.checkIfInside(glm::vec2(x, y))) break;
+    if(script.checkIfInside(glm::vec2(x, y), camera2d)) break;
   }
   if(manualFocus) {
     focusShader.centerX = float(x)/float(ofGetWidth());

@@ -64,17 +64,26 @@ SynthDef(\sineperc, { var freq = \freq.kr(100), sig, env;
 	Out.ar(0, sig);
 }).add;
 SynthDef(\filtered_noise, {
-	var sig, env, freqs;
+	var sig, env, freqs, abortEnv;
 	env = EnvGen.kr(
 		Env(
 			levels: [0, 1, 0],
 			times: [\atk.kr(0.5), \rel.kr(4)],
-			curve: [\c0.kr(2), \c1.kr(-2)],
-			releaseNode: 1),
-		gate: \gate.kr(1)
-		).kr;
+			curve: [\c0.kr(2), \c1.kr(-2)]),
+		doneAction: 2
+		);
+	abortEnv = EnvGen.kr(
+		Env(
+			levels: [1, 0],
+			times: [0.5],
+			curve: [-2],
+			releaseNode: 0,
+		),
+		gate: \gate.kr(1),
+		doneAction: 2
+		);
 	sig = PinkNoise.ar();
-	sig = Resonz.ar(sig*16, \freq.kr(400), 0.001)*env;
+	sig = Resonz.ar(sig*16, \freq.kr(400), 0.001)*env*abortEnv;
 	sig = Pan2.ar(sig, \pan.kr(0.0));
 	Out.ar(\out.kr(0), sig);
 }).add;
@@ -144,11 +153,12 @@ OSCdef(\test, {
 				freq
 			};
 			sparserChord = idDigits.collect{|digit| modifiedChord[digit%modifiedChord.size]};
-			sparserChord = [sparserChord.choose];
-			~filteredNoiseSynths.do{|syn| syn.set(\rel, 0.5, \gate, 0); }; // release all old chords
-			~filteredNoiseSynths = sparserChord.collect { | freq |
-				Synth(\filtered_noise, [\freq, freq*0.25, \amp, 1.0, \atk, 0.1, \rel, (10 * (1-~speed).pow(4)), \pan, rrand(-1, 1)]);
-
+			//sparserChord = [sparserChord.choose];
+			("filteredNoiseSynths.size: " + ~filteredNoiseSynths.size).postln;
+			~filteredNoiseSynths.do{|syn| syn.release; }; // release all old chords
+			~filteredNoiseSynths = sparserChord.collect { | freq | var release = (10 * (1-(~speed*10)).pow(4));
+				//("filtered noise with a release of " + release).postln;
+				Synth(\filtered_noise, [\freq, freq*0.25, \amp, 1.0, \atk, 0.1, \rel, release, \pan, rrand(-1, 1)]);
 			};
 		});
 		msg.postln;
@@ -171,3 +181,13 @@ OSCdef(\test, {
 	}
 }.fork;
 )
+
+a = Synth(\filtered_noise, [\freq, 4000*0.25, \amp, 1.0, \atk, 0.1, \rel, 10, \pan, rrand(-1, 1)]);
+a.release
+a.set(\gate, 0);
+
+~filteredNoiseSynths.do{|syn| syn.release; }; // release all old chords
+			~filteredNoiseSynths = sparserChord.collect { | freq | var release = (10 * (1-(~speed*10)).pow(4));
+				//("filtered noise with a release of " + release).postln;
+				Synth(\filtered_noise, [\freq, freq*0.25, \amp, 1.0, \atk, 0.1, \rel, release, \pan, rrand(-1, 1)]);
+			};
