@@ -274,6 +274,10 @@ public:
     return playing;
   }
   
+  float getTimeScale() {
+    return timeScale;
+  }
+  
   void reduceSpeed() {
     timeScale *= 0.9;
     TimelineMessage mess;

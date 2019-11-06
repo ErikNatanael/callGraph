@@ -14,7 +14,7 @@ public:
   float centerY = 0;
   float exposure = 0.48;
   float decay = 0.9;
-  float density = .1;
+  float density = .01;
   float weight = 0.5;
   float clamp = 1;
   

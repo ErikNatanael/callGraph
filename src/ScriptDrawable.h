@@ -101,14 +101,13 @@ public:
     else if(urlParts[0] == "chrome-extension://") ofSetColor(120, 50, 150, 255);
     else  ofSetColor(110, 150, 50, 255);
     
-    glm::vec2 offsetPos = camera2d.offsetPosLow;
-    ofDrawCircle(pos + offsetPos, radius + 5);
+    ofDrawCircle(pos, radius + 5);
     
     if(focused) {
       ofSetColor(90, 90, 255, 255);
       ofPushMatrix();
       
-      ofTranslate(pos.x + offsetPos.x, pos.y + offsetPos.y);
+      ofTranslate(pos.x, pos.y);
       ofRotateRad(textRotation);
       ofTranslate(-idStringWidth*0.5, -radius-8); // move to the edge of the ring
       for (int i = 0; i < idPaths.size(); i++){
@@ -138,7 +137,7 @@ public:
           // int offsety = lineInt * urlCharacterHeight * 1.1;
           int offsetx = 0;
           int offsety = radius + urlCharacterHeight + urlCharacterHeight*k;
-          urlPaths[k][i].draw((pos.x - (radius*0.9) + offsetx) + offsetPos.x, (pos.y + offsety) + offsetPos.y);
+          urlPaths[k][i].draw((pos.x - (radius*0.9) + offsetx), (pos.y + offsety));
         }
       }
       
@@ -146,7 +145,6 @@ public:
   }
   
   bool checkIfInside(glm::vec2 pointerPos, Camera2D& camera2d) {
-    pointerPos -= camera2d.offsetPosLow;
     if(glm::distance(pos, pointerPos) < radius) {
       focused = true;
       return true;

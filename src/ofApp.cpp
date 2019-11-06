@@ -197,17 +197,24 @@ void ofApp::draw(){
   camera2d.update(dt);
   
   if(!manualFocus) {
-    focusShader.centerX = (camera2d.targetPos.x+camera2d.offsetPos.x)/float(ofGetWidth());
-    focusShader.centerY = (camera2d.targetPos.y+camera2d.offsetPos.y)/float(ofGetHeight());
+    focusShader.centerX = (camera2d.currentPos.x)/float(ofGetWidth());
+    focusShader.centerY = (camera2d.currentPos.y)/float(ofGetHeight());
   }
+  
+  focusShader.density = ofClamp(pow(1.0-timeline.getTimeScale(), 6.0), 0.0, 1.0)+0.01;
   
   canvasFbo.begin();
     ofSetColor(255, 255);
     backgroundFbo.draw(0, 0);
     foregroundFbo.draw(0, 0);
   canvasFbo.end();
-  focusShader.render(canvasFbo, resultFbo);
-  resultFbo.draw(0, 0);
+  if(doBlur) {
+    focusShader.render(canvasFbo, resultFbo);
+    resultFbo.draw(0, 0);
+  } else {
+    canvasFbo.draw(0, 0);
+  }
+  
   
   timeline.draw();
   
@@ -254,6 +261,8 @@ void ofApp::keyPressed(int key){
     saveFrame();
   } else if (key == 'm') {
     manualFocus = !manualFocus;
+  } else if (key == 'b') {
+    doBlur = !doBlur;
   }
 
 }

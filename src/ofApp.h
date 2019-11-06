@@ -52,6 +52,7 @@ class ofApp : public ofBaseApp{
 		int HEIGHT = 1080;
 		FocusShader focusShader;
 		bool manualFocus = false;
+		bool doBlur = true;
 	
 		Camera2D camera2d;
 		
