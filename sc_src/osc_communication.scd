@@ -79,7 +79,7 @@ SynthDef(\filtered_noise, {
 			curve: [-2],
 			releaseNode: 0,
 		),
-		gate: \gate.kr(1),
+		gate: \gate.kr(1) + Impulse.kr(0), // the impulse is needed in case the gate is set within the same control period
 		doneAction: 2
 		);
 	sig = PinkNoise.ar();
@@ -155,7 +155,7 @@ OSCdef(\test, {
 			sparserChord = idDigits.collect{|digit| modifiedChord[digit%modifiedChord.size]};
 			//sparserChord = [sparserChord.choose];
 			("filteredNoiseSynths.size: " + ~filteredNoiseSynths.size).postln;
-			~filteredNoiseSynths.do{|syn| syn.release; }; // release all old chords
+			~filteredNoiseSynths.do{|syn| syn.release; }; // release all old synths
 			~filteredNoiseSynths = sparserChord.collect { | freq | var release = (10 * (1-(~speed*10)).pow(4));
 				//("filtered noise with a release of " + release).postln;
 				Synth(\filtered_noise, [\freq, freq*0.25, \amp, 1.0, \atk, 0.1, \rel, release, \pan, rrand(-1, 1)]);
@@ -187,7 +187,13 @@ a.release
 a.set(\gate, 0);
 
 ~filteredNoiseSynths.do{|syn| syn.release; }; // release all old chords
-			~filteredNoiseSynths = sparserChord.collect { | freq | var release = (10 * (1-(~speed*10)).pow(4));
-				//("filtered noise with a release of " + release).postln;
-				Synth(\filtered_noise, [\freq, freq*0.25, \amp, 1.0, \atk, 0.1, \rel, release, \pan, rrand(-1, 1)]);
-			};
+(
+20.do {
+	("size: " + ~filteredNoiseSynths.size).postln;
+~filteredNoiseSynths.do{|syn| syn.release; }; // release all old chords
+~filteredNoiseSynths = 4.collect {var release = 10, freq = rrand(3000, 4000);
+	//("filtered noise with a release of " + release).postln;
+	Synth(\filtered_noise, [\freq, freq*0.25, \amp, 1.0, \atk, 0.1, \rel, release, \pan, rrand(-1, 1)]);
+};
+}
+)
