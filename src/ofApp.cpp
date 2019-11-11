@@ -94,6 +94,7 @@ void ofApp::setup() {
   foregroundFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
   canvasFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
   resultFbo.allocate(WIDTH, HEIGHT, GL_RGBA32F);
+  renderFbo.allocate(WIDTH, HEIGHT, GL_RGB);
   focusShader.init();
   
   timeline.startThread(true);
@@ -108,9 +109,8 @@ void ofApp::update(){
 
 //--------------------------------------------------------------
 void ofApp::draw(){
-  static float lastTime = 0;
-  float dt = ofGetElapsedTimef()-lastTime;
-  lastTime = ofGetElapsedTimef();
+  float dt = timeline.getNonScaledFramedt();
+  float scaleddt = timeline.getFramedt();
   
   // move functions
   if(timeline.isPlaying()) {
@@ -210,17 +210,35 @@ void ofApp::draw(){
   canvasFbo.end();
   if(doBlur) {
     focusShader.render(canvasFbo, resultFbo);
+    if(rendering) renderFbo.begin();
     resultFbo.draw(0, 0);
+    if(rendering) renderFbo.end();
   } else {
+    if(rendering) renderFbo.begin();
     canvasFbo.draw(0, 0);
+    if(rendering) renderFbo.end();
   }
   
+  if(rendering) renderFbo.draw(0, 0);
   
+  if(rendering) {
+    // write frame to disk
+    // glReadBuffer(GL_FRONT);
+    // grabImg.grabScreen(0, 0 , ofGetWidth(), ofGetHeight());
+    renderFbo.readToPixels(renderPixels);
+    grabImg.setFromPixels(renderPixels);
+    grabImg.save(renderDirectory + "frame-" + to_string(frameNumber) + ".png");
+    frameNumber++;
+    // move time forward by one frame time
+    timeline.progressFrame();
+  }
+  
+  // if(!rendering) timeline.draw();
   timeline.draw();
   
   // Alpha needs to be cleared in order to accurately capture with OBS or grabScreen()
   // see: https://forum.openframeworks.cc/t/different-transparency-and-colours-on-screen-in-recording/32784
-  ofClearAlpha(); 
+  ofClearAlpha();
 }
 
 glm::vec2 ofApp::findNewScriptPosition(float radius) {
@@ -263,8 +281,14 @@ void ofApp::keyPressed(int key){
     manualFocus = !manualFocus;
   } else if (key == 'b') {
     doBlur = !doBlur;
+  } else if(key == 'r') {
+    ofFileDialogResult result = ofSystemLoadDialog("Render folder", true, renderDirectory);
+    if(result.bSuccess) {
+      renderDirectory = result.getPath() + "/";
+      rendering = true;
+      timeline.startRendering();
+    }
   }
-
 }
 
 

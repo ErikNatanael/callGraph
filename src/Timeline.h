@@ -33,6 +33,15 @@ private:
   uint64_t timeCursor = 0;
   float timeScale = 1;
   bool playing = false;
+  bool rendering = false;
+  float frameRate = 60;
+  double currentTime = 0;
+  ofMutex nonScaledCurrentTimeMutex;
+  double nonScaledCurrentTime = 0;
+  double lastNonScaledFrameTime = 0;
+  double lastFrameTime = 0;
+  ofMutex renderCurrentTimeMutex;
+  double renderCurrentTime = 0;
   double numTimeStepsToProgress = 0;
   
   uint64_t firstts = 1000000000000;
@@ -64,47 +73,59 @@ private:
     // start
     while(isThreadRunning()) {
       static float lastTime = 0;
-      float dt = ofGetElapsedTimef()-lastTime;
-      lastTime = ofGetElapsedTimef();
+      static float nonScaledLastTime = 0;
+      if(!rendering) {
+        currentTime = ofGetElapsedTimef();
       
-      if(playing) {
-        // calculate how many time steps whould be gone through this frame
-        const double timeStepsPerSecond = 1000000;
-        numTimeStepsToProgress += dt * timeStepsPerSecond * timeScale;
-        while(numTimeStepsToProgress > 0) {
-          timeCursor += 1;
-          auto search = callMap.find(timeCursor);
-          if (search != callMap.end()) {
-            // create message
-            TimelineMessage mess;
-            mess.type = "functionCall";
-            mess.parameters.insert({"id", search->second.id});
-            mess.parameters.insert({"parent", search->second.parent});
-            mess.parameters.insert({"scriptId", search->second.scriptId});
-            // send it as OSC
-            sendViaOsc(mess);
-            // lock access to the resource
-            lock();
-            // put the message in the queue
-            messageFIFO.push_back(mess);
-            // done with the resource
-            unlock();
-          }
-          numTimeStepsToProgress -= 1;
+        double dt = (currentTime-lastTime) * timeScale;
+        
+        nonScaledCurrentTime += (currentTime-lastTime);
+        lastTime = currentTime;
+        
+        if(playing) {
+          progressQueue(dt);
         }
-      }
-      if(timeCursor >= lastts) {
-        TimelineMessage mess;
-        mess.type = "timelineReset";
-        lock();
-        messageFIFO.push_back(mess);
-        unlock();
-        timeCursor = firstts;
       }
     }
       // done
   }
   
+  void progressQueue(float dt) {
+    // calculate how many time steps whould be gone through this frame
+    const double timeStepsPerSecond = 1000000;
+    numTimeStepsToProgress += dt * timeStepsPerSecond;
+    while(numTimeStepsToProgress > 0) {
+      timeCursor += 1;
+      auto search = callMap.find(timeCursor);
+      if (search != callMap.end()) {
+        // create message
+        TimelineMessage mess;
+        mess.type = "functionCall";
+        mess.parameters.insert({"id", search->second.id});
+        mess.parameters.insert({"parent", search->second.parent});
+        mess.parameters.insert({"scriptId", search->second.scriptId});
+        // send it as OSC
+        sendViaOsc(mess);
+        // lock access to the resource
+        lock();
+        // put the message in the queue
+        messageFIFO.push_back(mess);
+        // done with the resource
+        unlock();
+      }
+      numTimeStepsToProgress -= 1;
+    }
+    
+    if(timeCursor >= lastts) {
+      TimelineMessage mess;
+      mess.type = "timelineReset";
+      lock();
+      messageFIFO.push_back(mess);
+      unlock();
+      timeCursor = firstts;
+    }
+  }
+    
   void sendViaOsc(TimelineMessage& mess) {
     oscMutex.lock();
     oscMess.clear();
@@ -303,6 +324,50 @@ public:
       ofBackground(0, 0);
       timelineFbo.end();
     }
+  }
+  
+  float getFramedt() {
+    // update time
+    // currentTime = ofGetElapsedTimef();
+    double localCurrentTime;
+    if(!rendering) {
+      localCurrentTime = currentTime;
+    } else {
+      localCurrentTime = renderCurrentTime;
+    }
+    
+    if(lastFrameTime == 0) lastFrameTime = localCurrentTime; // dt will be 0 the first frame
+    float dt = localCurrentTime - lastFrameTime;
+    lastFrameTime = localCurrentTime;
+    return dt;
+  }
+  
+  float getNonScaledFramedt() {
+    // update time
+    // currentTime = ofGetElapsedTimef();
+    nonScaledCurrentTimeMutex.lock();
+    double localCurrentTime = nonScaledCurrentTime;
+    nonScaledCurrentTimeMutex.unlock();
+    
+    if(lastNonScaledFrameTime == 0) lastNonScaledFrameTime = localCurrentTime; // dt will be 0 the first frame
+    float dt = localCurrentTime - lastNonScaledFrameTime;
+    lastNonScaledFrameTime = localCurrentTime;
+    return dt;
+  }
+  
+  void progressFrame() {
+    renderCurrentTimeMutex.lock();
+    renderCurrentTime += (1./frameRate) * timeScale;
+    renderCurrentTimeMutex.unlock();
+    
+    nonScaledCurrentTimeMutex.lock();
+    nonScaledCurrentTime += (1./frameRate);
+    nonScaledCurrentTimeMutex.unlock();
+    progressQueue((1./frameRate) * timeScale);
+  }
+  
+  void startRendering() {
+    rendering = true;
   }
   
 };

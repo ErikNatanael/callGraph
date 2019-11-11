@@ -53,6 +53,12 @@ class ofApp : public ofBaseApp{
 		FocusShader focusShader;
 		bool manualFocus = false;
 		bool doBlur = true;
+		
+		bool rendering = false;
+		int frameNumber = 0;
+		string renderDirectory;
+		ofFbo renderFbo;
+		ofPixels renderPixels;
 	
 		Camera2D camera2d;
 		
