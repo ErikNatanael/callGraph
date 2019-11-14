@@ -53,6 +53,7 @@ class ofApp : public ofBaseApp{
 		FocusShader focusShader;
 		bool manualFocus = false;
 		bool doBlur = true;
+		glm::vec2 staticScriptFocus; // for making stills focusing on certain scripts
 		
 		bool rendering = false;
 		int frameNumber = 0;

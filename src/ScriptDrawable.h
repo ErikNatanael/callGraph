@@ -102,13 +102,15 @@ public:
     else  ofSetColor(110, 150, 50, 255);
     
     ofDrawCircle(pos, radius + 5);
-    
+  }
+  
+  void drawText(Camera2D& camera2d) {
     if(focused) {
       ofSetColor(90, 90, 255, 255);
       ofPushMatrix();
       
       ofTranslate(pos.x, pos.y);
-      ofRotateRad(textRotation);
+      // ofRotateRad(textRotation);
       ofTranslate(-idStringWidth*0.5, -radius-8); // move to the edge of the ring
       for (int i = 0; i < idPaths.size(); i++){
         idPaths[i].draw(0, 0);
@@ -126,30 +128,28 @@ public:
       ofPopMatrix();
       
       // draw url
-      for(int k = 0; k < urlPaths.size(); k++) {
-        for(int i = 0; i < urlPaths[k].size(); i++) {
-          // float maxLineLength = (radius * 1.8);
-          float maxLineLength = 300;
-          float lineInt;
-          float lineFract = modf( (urlCharacterWidth*i) / maxLineLength, &lineInt);
-          
-          // int offsetx = maxLineLength*-1*lineInt;
-          // int offsety = lineInt * urlCharacterHeight * 1.1;
-          int offsetx = 0;
-          int offsety = radius + urlCharacterHeight + urlCharacterHeight*k;
-          urlPaths[k][i].draw((pos.x - (radius*0.9) + offsetx), (pos.y + offsety));
-        }
-      }
+      // for(int k = 0; k < urlPaths.size(); k++) {
+      //   for(int i = 0; i < urlPaths[k].size(); i++) {
+      //     // float maxLineLength = (radius * 1.8);
+      //     float maxLineLength = 300;
+      //     float lineInt;
+      //     float lineFract = modf( (urlCharacterWidth*i) / maxLineLength, &lineInt);
+      // 
+      //     // int offsetx = maxLineLength*-1*lineInt;
+      //     // int offsety = lineInt * urlCharacterHeight * 1.1;
+      //     int offsetx = 0;
+      //     int offsety = radius + urlCharacterHeight + urlCharacterHeight*k;
+      //     urlPaths[k][i].draw((pos.x - (radius*0.9) + offsetx), (pos.y + offsety));
+      //   }
+      // }
       
     }
   }
   
   bool checkIfInside(glm::vec2 pointerPos, Camera2D& camera2d) {
     if(glm::distance(pos, pointerPos) < radius) {
-      focused = true;
+      focused = !focused;
       return true;
-    } else {
-      focused = false;
     }
     return false;
   }

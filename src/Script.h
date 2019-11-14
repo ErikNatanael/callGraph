@@ -18,5 +18,9 @@ public:
   bool operator==(const int id) {
     return this->scriptId == id;
   }
+  
+  void print() {
+    cout << numFunctions << " scriptId: " << scriptId << " url: "<< url << endl;
+  }
 };
 

@@ -1,8 +1,8 @@
 #include "ofApp.h"
 
 void ofApp::saveFrame() {
-  glReadBuffer(GL_FRONT);
-  grabImg.grabScreen(0, 0, ofGetWidth(), ofGetHeight());
+  renderFbo.readToPixels(renderPixels);
+  grabImg.setFromPixels(renderPixels);
   grabImg.save("screenshots/screenshot" + ofGetTimestampString() + ".png");
 }
 
@@ -12,7 +12,7 @@ void ofApp::setup() {
   HEIGHT = ofGetHeight();
   
   // must set makeContours to true in order to generate paths
-  font.load("SourceCodePro-Regular.otf", 16, false, false, true);
+  font.load("SourceCodePro-Regular.otf", 48, false, false, true);
   
   timeline.init(WIDTH, HEIGHT);
   timeline.parseProfile("profiles/software_art/scores/scripting_events.json");
@@ -83,6 +83,12 @@ void ofApp::setup() {
     func.boundCenter = scriptPos;
     func.boundRadius = maxRadius;
   }
+  
+  // set the focus to a certain script
+  auto searchScript = find(scripts.begin(), scripts.end(), 273);
+  if(searchScript != scripts.end()) {
+    staticScriptFocus = searchScript->pos;
+  }
     
   // ***************************** INIT openFrameworks STUFF
   ofBackground(0);
@@ -119,6 +125,7 @@ void ofApp::draw(){
     }
     for(auto& script : scripts) {
       script.update(dt);
+      script.drawText(camera2d);
     }
   }
   
@@ -143,14 +150,15 @@ void ofApp::draw(){
       // draw every script
       for(auto& script: scripts) {
         script.draw(camera2d);
+        script.drawText(camera2d);
       }
     backgroundFbo.end();
     
     
-    foregroundFbo.begin();
-    ofSetColor(0, 1);
-    ofDrawRectangle(0, 0, ofGetWidth(), ofGetHeight());
-    foregroundFbo.end();
+    // foregroundFbo.begin();
+    // ofSetColor(0, 1);
+    // ofDrawRectangle(0, 0, ofGetWidth(), ofGetHeight());
+    // foregroundFbo.end();
     
     // get the message queue from the timeline
     timeline.lock();
@@ -197,11 +205,13 @@ void ofApp::draw(){
   camera2d.update(dt);
   
   if(!manualFocus) {
-    focusShader.centerX = (camera2d.currentPos.x)/float(ofGetWidth());
-    focusShader.centerY = (camera2d.currentPos.y)/float(ofGetHeight());
+    // focusShader.centerX = (camera2d.currentPos.x)/float(ofGetWidth());
+    // focusShader.centerY = (camera2d.currentPos.y)/float(ofGetHeight());
+    focusShader.centerX = (staticScriptFocus.x)/float(ofGetWidth());
+    focusShader.centerY = (staticScriptFocus.y)/float(ofGetHeight());
   }
   
-  focusShader.density = ofClamp(pow(1.0-timeline.getTimeScale(), 6.0), 0.0, 1.0)+0.01;
+  // focusShader.density = ofClamp(pow(1.0-timeline.getTimeScale(), 6.0), 0.0, 1.0)+0.01;
   
   canvasFbo.begin();
     ofSetColor(255, 255);
@@ -210,16 +220,18 @@ void ofApp::draw(){
   canvasFbo.end();
   if(doBlur) {
     focusShader.render(canvasFbo, resultFbo);
-    if(rendering) renderFbo.begin();
+    renderFbo.begin();
+    ofSetColor(255, 255);
     resultFbo.draw(0, 0);
-    if(rendering) renderFbo.end();
+    renderFbo.end();
   } else {
     if(rendering) renderFbo.begin();
     canvasFbo.draw(0, 0);
     if(rendering) renderFbo.end();
   }
   
-  if(rendering) renderFbo.draw(0, 0);
+  ofSetColor(255, 255);
+  renderFbo.draw(0, 0);
   
   if(rendering) {
     // write frame to disk
@@ -234,6 +246,7 @@ void ofApp::draw(){
   }
   
   // if(!rendering) timeline.draw();
+  focusShader.drawGUI();
   timeline.draw();
   
   // Alpha needs to be cleared in order to accurately capture with OBS or grabScreen()
@@ -288,6 +301,8 @@ void ofApp::keyPressed(int key){
       rendering = true;
       timeline.startRendering();
     }
+  } else if(key == 'a') {
+    timeline.allAtOnce();
   }
 }
 
@@ -300,10 +315,7 @@ void ofApp::keyReleased(int key){
 
 //--------------------------------------------------------------
 void ofApp::mouseMoved(int x, int y ){
-  for(auto& script : scripts) {
-    // scripts cannot overlap so break if a match is found
-    if(script.checkIfInside(glm::vec2(x, y), camera2d)) break;
-  }
+  
   if(manualFocus) {
     focusShader.centerX = float(x)/float(ofGetWidth());
     focusShader.centerY = float(y)/float(ofGetHeight());
@@ -318,7 +330,13 @@ void ofApp::mouseDragged(int x, int y, int button){
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button){
   timeline.click(x, y);
-
+  for(auto& script : scripts) {
+    // scripts cannot overlap so break if a match is found
+    if(script.checkIfInside(glm::vec2(x, y), camera2d)) {
+      staticScriptFocus = script.pos;
+      break;
+    }
+  }
 }
 
 //--------------------------------------------------------------

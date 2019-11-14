@@ -1,3 +1,4 @@
 ofxOsc
 ofxJSON
 ofxPostProcessing
+ofxGui

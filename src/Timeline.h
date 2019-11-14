@@ -33,8 +33,9 @@ private:
   uint64_t timeCursor = 0;
   float timeScale = 1;
   bool playing = false;
+  bool looping = true;
   bool rendering = false;
-  float frameRate = 60;
+  float frameRate = 1;
   double currentTime = 0;
   ofMutex nonScaledCurrentTimeMutex;
   double nonScaledCurrentTime = 0;
@@ -85,9 +86,21 @@ private:
         if(playing) {
           progressQueue(dt);
         }
+        if(timeCursor >= lastts && looping) {
+          reset();
+        }
       }
     }
       // done
+  }
+  
+  void reset() {
+    TimelineMessage mess;
+    mess.type = "timelineReset";
+    lock();
+    messageFIFO.push_back(mess);
+    unlock();
+    timeCursor = firstts;
   }
   
   void progressQueue(float dt) {
@@ -114,15 +127,6 @@ private:
         unlock();
       }
       numTimeStepsToProgress -= 1;
-    }
-    
-    if(timeCursor >= lastts) {
-      TimelineMessage mess;
-      mess.type = "timelineReset";
-      lock();
-      messageFIFO.push_back(mess);
-      unlock();
-      timeCursor = firstts;
     }
   }
     
@@ -178,6 +182,9 @@ public:
     ofLog() << json["events"][3]["ts"];
     
     set<int> scriptIds; // set to see how many script ids there is
+    set<string> scriptURLs;
+    
+    set<string> functionNamesInAScript;
 
     if (json["events"].isArray())
     {
@@ -207,6 +214,8 @@ public:
             callMap.insert({tempCall.ts, tempCall});
             scriptIds.insert(tempCall.scriptId);
             
+            if(tempCall.scriptId == 251 || tempCall.scriptId == 263 || tempCall.scriptId == 258 || tempCall.scriptId == 247 || tempCall.scriptId == 257) functionNamesInAScript.insert({tempCall.name});
+            
             // create the associated script and store its url
             auto searchScript = find(scripts.begin(), scripts.end(), tempCall.scriptId);
             if(searchScript == scripts.end()) {
@@ -214,6 +223,7 @@ public:
               tempScript.scriptId = tempCall.scriptId;
               tempScript.url = nodes[j]["callFrame"]["url"].asString();
               scripts.push_back(tempScript);
+              scriptURLs.insert(tempScript.url);
             }
             
             // create the associated function
@@ -227,7 +237,8 @@ public:
                tempFunc.scriptId = tempCall.scriptId;
                tempFunc.lineNumber = nodes[j]["callFrame"]["lineNumber"].asInt();
                tempFunc.columnNumber = nodes[j]["callFrame"]["columnNumber"].asInt();
-               functionMap.insert({tempFunc.id, tempFunc});
+               tempFunc.url = nodes[j]["callFrame"]["url"].asString();
+               functionMap.insert({tempCall.id, tempFunc});
             }
 
             if(tempCall.scriptId > maxScriptId) maxScriptId = tempCall.scriptId;
@@ -237,9 +248,22 @@ public:
       }
     }
     
+    vector<Function> sortedFunctions;
+    // get the most called functions:
+    for(auto& fp : functionMap) {
+      auto& func = fp.second;
+      sortedFunctions.push_back(func);
+    }
+    std::sort(sortedFunctions.begin(), sortedFunctions.end());
+    cout << endl << "Most called functions: " << endl;
+    for(int i = 0; i < 10; i++) {
+      sortedFunctions[i].print();
+    }
+    
     timeWidth = lastts - firstts;
     numScripts = scriptIds.size();
     cout << functionCalls.size() << " function calls registered" << endl;
+    cout << functionMap.size() << " functions registered" << endl;
     cout << scriptIds.size() << " script ids registered" << endl;
     cout << "first ts: " << firstts << endl;
     cout << "last ts: " << lastts << endl;
@@ -262,6 +286,22 @@ public:
     }
     // sort scripts after number of functions to find a position for the biggest one first
     std::sort (scripts.begin(), scripts.end());
+    
+    cout << endl << "Most called script ids: " << endl;
+    for(int i = 0; i < 30; i++) {
+      scripts[i].print();
+    }
+    
+    ofLogNotice("functions in script");
+    for(auto& s : functionNamesInAScript) {
+      cout << s << ", ";
+    }
+    cout << endl;
+    
+    cout << endl << "There are " << scriptURLs.size() << " script URLs registered:" << endl;
+    for(auto& s : scriptURLs) {
+      cout << s << endl;
+    }
   }
   
   unordered_map<uint32_t, Function>& getFunctionMap() {
@@ -368,6 +408,12 @@ public:
   
   void startRendering() {
     rendering = true;
+  }
+  
+  void allAtOnce() {
+    reset();
+    progressQueue(10.0);
+    looping = false;
   }
   
 };
