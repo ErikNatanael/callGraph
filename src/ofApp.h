@@ -59,6 +59,10 @@ class ofApp : public ofBaseApp{
 		string renderDirectory;
 		ofFbo renderFbo;
 		ofPixels renderPixels;
+		
+		double lastInteractionTime = 0;
+		const double interactionTimeout = 2; // number of seconds of inactivity before the system takes over
+		bool manualMode = false;
 	
 		Camera2D camera2d;
 		

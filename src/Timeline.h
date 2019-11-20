@@ -2,6 +2,7 @@
 
 #include "ofMain.h"
 #include <memory>
+#include <sstream>
 #include "ofxJSON.h"
 #include "ofxOsc.h"
 
@@ -20,6 +21,7 @@ timeline.unlock();
 
 */
 
+
 class TimelineMessage {
 public:
   string type;
@@ -34,6 +36,7 @@ private:
   float timeScale = 1;
   bool playing = false;
   bool rendering = false;
+  bool autoSpeed = true;
   float frameRate = 60;
   double currentTime = 0;
   ofMutex nonScaledCurrentTimeMutex;
@@ -53,6 +56,8 @@ private:
   ofxJSONElement json;
   ofFbo timelineFbo;
   int timelineHeight = 0;
+  ofTrueTypeFont font;
+  int fontSize;
   
   int WIDTH = 0, HEIGHT = 0;
   
@@ -123,6 +128,16 @@ private:
       messageFIFO.push_back(mess);
       unlock();
       timeCursor = firstts;
+      if(autoSpeed) {
+        timeScale *= 0.5;
+        if(timeScale < 0.025) {
+          timeScale = 1;
+        }
+        TimelineMessage mess;
+        mess.type = "changeSpeed";
+        mess.parameters.insert({"speed", timeScale});
+        sendViaOsc(mess);
+      }
     }
   }
     
@@ -157,7 +172,10 @@ public:
     timelineFbo.end();
     WIDTH = w;
     HEIGHT = h;
-    timelineHeight = h*0.01;
+    timelineHeight = h*0.015;
+    
+    fontSize = WIDTH/120;
+    font.load("SourceCodePro-Regular.otf", fontSize, false, false, true);
     
     oscSender.setup("127.0.0.1", 57120); // send to SuperCollider on the local machine
   }
@@ -277,8 +295,14 @@ public:
     int cursorX = ( double(timeCursor-firstts)/double(timeWidth) ) * ofGetWidth();
     timelineFbo.begin();
     ofBackground(0, 0);
-    ofSetColor(255, 255);
+    ofSetColor(50, 255);
     ofDrawRectangle(0, HEIGHT - timelineHeight, cursorX, HEIGHT);
+    int textX = ofClamp(cursorX-(fontSize*5), 0, WIDTH-(fontSize*10));
+    font.drawString(to_string(timeCursor), textX, HEIGHT - timelineHeight*2.2);
+    std::ostringstream out;
+    out.precision(4);
+    out << timeScale;
+    font.drawString(out.str(), textX, HEIGHT - timelineHeight*1.1);
     timelineFbo.end();
     timelineFbo.draw(0, 0);
   }
@@ -301,6 +325,7 @@ public:
   
   void reduceSpeed() {
     timeScale *= 0.9;
+    if(timeScale < 0.01) timeScale = 0.01;
     TimelineMessage mess;
     mess.type = "changeSpeed";
     mess.parameters.insert({"speed", timeScale});
@@ -309,6 +334,7 @@ public:
   
   void increaseSpeed() {
     timeScale *= 1.11;
+    if(timeScale > 1.0) timeScale = 1.0;
     TimelineMessage mess;
     mess.type = "changeSpeed";
     mess.parameters.insert({"speed", timeScale});

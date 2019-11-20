@@ -11,7 +11,7 @@ public:
   
   void update(float dt) {
     glm::vec2 moveVector = targetPos - currentPos;
-    currentPos += moveVector*dt;
+    currentPos += moveVector*dt*3;
     offsetPos = glm::vec2(ofGetWidth()/2, ofGetHeight()/2) - currentPos;
     offsetPosLow = offsetPos * 0.95;
   }

@@ -103,7 +103,10 @@ void ofApp::setup() {
 //--------------------------------------------------------------
 void ofApp::update(){
   
-  
+  if(ofGetElapsedTimef() - lastInteractionTime > interactionTimeout) {
+    manualMode = false;
+
+  }
 	//ofLog() << "fps: " << ofGetFrameRate();
 }
 
@@ -196,7 +199,7 @@ void ofApp::draw(){
   
   camera2d.update(dt);
   
-  if(!manualFocus) {
+  if(!manualMode) {
     focusShader.centerX = (camera2d.currentPos.x)/float(ofGetWidth());
     focusShader.centerY = (camera2d.currentPos.y)/float(ofGetHeight());
   }
@@ -304,15 +307,18 @@ void ofApp::mouseMoved(int x, int y ){
     // scripts cannot overlap so break if a match is found
     if(script.checkIfInside(glm::vec2(x, y), camera2d)) break;
   }
-  if(manualFocus) {
+  if(manualMode) {
     focusShader.centerX = float(x)/float(ofGetWidth());
     focusShader.centerY = float(y)/float(ofGetHeight());
   }
+  
+  // check if someone is interacting
+  lastInteractionTime = ofGetElapsedTimef();
+  manualMode = true;
 }
 
 //--------------------------------------------------------------
 void ofApp::mouseDragged(int x, int y, int button){
-
 }
 
 //--------------------------------------------------------------
@@ -342,6 +348,8 @@ void ofApp::mouseScrolled(int x, int y, float scrollX, float scrollY){
   } else if(scrollY > 0) {
     timeline.increaseSpeed();
   }
+  lastInteractionTime = ofGetElapsedTimef();
+  manualMode = true;
 }
 
 //--------------------------------------------------------------
