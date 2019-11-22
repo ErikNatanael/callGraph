@@ -11,8 +11,10 @@ void ofApp::setup() {
   WIDTH = ofGetWidth();
   HEIGHT = ofGetHeight();
   
+  resMul = float(WIDTH)/3840.0f;
+  
   // must set makeContours to true in order to generate paths
-  font.load("SourceCodePro-Regular.otf", 16, false, false, true);
+  font.load("SourceCodePro-Regular.otf", 22*resMul, false, false, true);
   
   timeline.init(WIDTH, HEIGHT);
   timeline.parseProfile("profiles/software_art/scores/scripting_events.json");
@@ -37,6 +39,7 @@ void ofApp::setup() {
     func.calledTimes = f.calledTimes;
     func.lineNumber = f.lineNumber;
     func.columnNumber = f.columnNumber;
+    func.radius = ofClamp(ceil(5.0 * resMul), 1, 10);
     functionMap.insert({func.id, func});
   }
   
@@ -45,7 +48,7 @@ void ofApp::setup() {
   do {
     redoAllPositions = false;
     for(auto& script : scripts) {
-      script.radius = 20 + (sqrt(script.numFunctions) * 5);
+      script.radius = (25 + (sqrt(script.numFunctions) * 6)) * resMul;
       //ofLogNotice() << "radius: " << script.radius;
       script.pos = findNewScriptPosition(script.radius);
       //ofLogNotice() << "pos: " << script.pos;
@@ -78,7 +81,7 @@ void ofApp::setup() {
     }
     // add a polar coordinate distance to the script position
     float angle = ofRandom(0, TWO_PI*4);
-    float radius = ofRandom(10, maxRadius-10);
+    float radius = ofRandom(10*resMul, maxRadius-(10*resMul));
     func.pos = glm::vec2(scriptPos.x + (cos(angle)*radius), scriptPos.y + (sin(angle)*radius));
     func.boundCenter = scriptPos;
     func.boundRadius = maxRadius;
@@ -204,7 +207,7 @@ void ofApp::draw(){
     focusShader.centerY = (camera2d.currentPos.y)/float(ofGetHeight());
   }
   
-  focusShader.density = ofClamp(pow(1.0-timeline.getTimeScale(), 6.0), 0.0, 1.0)+0.01;
+  focusShader.density = ofClamp(pow(1.0-timeline.getTimeScale(), 8.0), 0.0, 1.0)+0.03;
   
   canvasFbo.begin();
     ofSetColor(255, 255);
@@ -249,8 +252,8 @@ glm::vec2 ofApp::findNewScriptPosition(float radius) {
   // check if it's at least n pixels from any previous position
   glm::vec2 newPos;
   bool isGood = true;
-  float minDistance = radius  + 50;
-  const int margin = 100;
+  float minDistance = radius  + (50*resMul);
+  const int margin = 100*resMul;
   int numTries = 0;
   const int maxTries = 500;
   

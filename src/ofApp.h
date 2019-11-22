@@ -53,6 +53,7 @@ class ofApp : public ofBaseApp{
 		FocusShader focusShader;
 		bool manualFocus = false;
 		bool doBlur = true;
+		float resMul = 1;
 		
 		bool rendering = false;
 		int frameNumber = 0;

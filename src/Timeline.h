@@ -172,7 +172,7 @@ public:
     timelineFbo.end();
     WIDTH = w;
     HEIGHT = h;
-    timelineHeight = h*0.015;
+    timelineHeight = h*0.01;
     
     fontSize = WIDTH/120;
     font.load("SourceCodePro-Regular.otf", fontSize, false, false, true);
@@ -295,14 +295,19 @@ public:
     int cursorX = ( double(timeCursor-firstts)/double(timeWidth) ) * ofGetWidth();
     timelineFbo.begin();
     ofBackground(0, 0);
-    ofSetColor(50, 255);
+    // ofSetColor(89, 172, 206, 255);
+    // ofSetColor(30, 70, 150, 255);
+    ofSetColor(115, 152, 226, 255);
+    // ofSetColor(50, 255);
     ofDrawRectangle(0, HEIGHT - timelineHeight, cursorX, HEIGHT);
     int textX = ofClamp(cursorX-(fontSize*5), 0, WIDTH-(fontSize*10));
-    font.drawString(to_string(timeCursor), textX, HEIGHT - timelineHeight*2.2);
+    font.drawString(to_string(timeCursor), textX, HEIGHT - timelineHeight*4.);
     std::ostringstream out;
     out.precision(4);
     out << timeScale;
-    font.drawString(out.str(), textX, HEIGHT - timelineHeight*1.1);
+    int numDigits = out.str().size();
+    int scaleX = ofClamp(cursorX-(fontSize*(float(numDigits)/2.)), 0, WIDTH-(fontSize*numDigits)); // TODO: center on end of timeline
+    font.drawString(out.str(), scaleX, HEIGHT - timelineHeight*2.0);
     timelineFbo.end();
     timelineFbo.draw(0, 0);
   }

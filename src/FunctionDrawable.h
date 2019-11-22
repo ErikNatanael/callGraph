@@ -85,7 +85,10 @@ public:
   }
   
   void drawForeground(FunctionDrawable& parent, Camera2D& camera2d) {
-    ofSetColor(30, 255, 70, 150);
+    // ofSetColor(30, 255, 70, 150);
+    // ofSetColor(89, 172, 206, 150);
+    // ofSetColor(52, 70, 71, 150);
+    ofSetColor(30, 70, 150, 200);
     ofDrawLine(pos, parent.pos);
     ofDrawCircle(pos, radius*1.2);
   }
