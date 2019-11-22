@@ -101,6 +101,7 @@ void ofApp::setup() {
   focusShader.init();
   
   timeline.startThread(true);
+  timeline.togglePlay();
 }
 
 //--------------------------------------------------------------
@@ -178,7 +179,7 @@ void ofApp::draw(){
         backgroundFbo.begin();
           func.drawLineBackground(parent, camera2d);
         backgroundFbo.end();
-        camera2d.targetPos = func.pos;
+        if(!manualMode) camera2d.targetPos = func.pos;
           
       } else if (m.type == "timelineReset") {
         // time cursor has reached the last event and has been reset
@@ -202,10 +203,10 @@ void ofApp::draw(){
   
   camera2d.update(dt);
   
-  if(!manualMode) {
+  // if(!manualMode) {
     focusShader.centerX = (camera2d.currentPos.x)/float(ofGetWidth());
     focusShader.centerY = (camera2d.currentPos.y)/float(ofGetHeight());
-  }
+  // }
   
   focusShader.density = ofClamp(pow(1.0-timeline.getTimeScale(), 8.0), 0.0, 1.0)+0.03;
   
@@ -279,22 +280,22 @@ glm::vec2 ofApp::findNewScriptPosition(float radius) {
 
 //--------------------------------------------------------------
 void ofApp::keyPressed(int key){
-  if(key == ' ') {
-    timeline.togglePlay();
-  } else if (key=='s') {
-    saveFrame();
-  } else if (key == 'm') {
-    manualFocus = !manualFocus;
-  } else if (key == 'b') {
-    doBlur = !doBlur;
-  } else if(key == 'r') {
-    ofFileDialogResult result = ofSystemLoadDialog("Render folder", true, renderDirectory);
-    if(result.bSuccess) {
-      renderDirectory = result.getPath() + "/";
-      rendering = true;
-      timeline.startRendering();
-    }
-  }
+  // if(key == ' ') {
+  //   timeline.togglePlay();
+  // } else if (key=='s') {
+  //   saveFrame();
+  // } else if (key == 'm') {
+  //   manualFocus = !manualFocus;
+  // } else if (key == 'b') {
+  //   doBlur = !doBlur;
+  // } else if(key == 'r') {
+  //   ofFileDialogResult result = ofSystemLoadDialog("Render folder", true, renderDirectory);
+  //   if(result.bSuccess) {
+  //     renderDirectory = result.getPath() + "/";
+  //     rendering = true;
+  //     timeline.startRendering();
+  //   }
+  // }
 }
 
 
@@ -311,8 +312,9 @@ void ofApp::mouseMoved(int x, int y ){
     if(script.checkIfInside(glm::vec2(x, y), camera2d)) break;
   }
   if(manualMode) {
-    focusShader.centerX = float(x)/float(ofGetWidth());
-    focusShader.centerY = float(y)/float(ofGetHeight());
+    // focusShader.centerX = float(x)/float(ofGetWidth());
+    // focusShader.centerY = float(y)/float(ofGetHeight());
+    camera2d.targetPos = glm::vec2(x, y);
   }
   
   // check if someone is interacting
